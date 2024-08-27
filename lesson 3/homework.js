@@ -1,3 +1,11 @@
+//Every field is used as logical without my cr_133 prefix
+
+/*
+In some cases i used like lookup[0].id but lookup var name was productId,priceListId and example name was also as follows
+*/
+// Task 1: Disable and Autofill Currency in "Price List Item" from "Price List"
+
+
 function autofillPricePerUnitInInventoryProduct(executionContext) {
     const formContext = executionContext.getFormContext();
     const productId = formContext.getAttribute("productId").getValue();
