@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Management Popup</title>
+    <style>
+        /* Basic styling for the popup */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        label, select, input {
+            margin-bottom: 10px;
+            display: block;
+        }
+        button {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Popup Form -->
+    <div>
+        <label for="product">Select Product:</label>
+        <select id="product"></select><br><br>
+
+        <label for="operation">Select Operation:</label>
+        <select id="operation">
+            <option value="0">Out</option>
+            <option value="1_">In</option>
+        </select><br><br>
+
+        <label for="quantity">Quantity:</label>
+        <input type="number" id="quantity" min="1" value="1" /><br><br>
+
+        <button id="okButton" onclick="performInventoryOperation()">OK</button>
+        <button onclick="window.close()">Cancel</button>
+    </div>
+
+    <script defer>
+        // Function to fetch all products and populate the dropdown
+        async function fetchProducts() {
+            // FetchXML to retrieve all products (cr133_product entity)
+            const fetchXml = `
+                <fetch>
+                    <entity name="cr133_product">
+                        <attribute name="cr133_productid" />
+                        <attribute name="cr133_name" />
+                    </entity>
+                </fetch>`;
+
+            try {
+                const result = await Xrm.WebApi.retrieveMultipleRecords("cr133_product", "?fetchXml=" + encodeURIComponent(fetchXml));
+                const productSelect = document.getElementById("product");
+
+                result.entities.forEach(product => {
+                    const option = document.createElement("option");
+                    option.value = product.cr133_productid;
+                    option.text = product.cr133_name;
+                    productSelect.add(option);
+                });
+            } catch (error) {
+                console.error("Error fetching products: ", error);
+                alert("Error fetching products. Please check the console for details.");
+            }
+        }
+
+        // Function to perform Inventory operations based on user input
+        async function performInventoryOperation() {
+            const productId = document.getElementById("product").value;
+            const operation = document.getElementById("operation").value;
+            const quantity = parseInt(document.getElementById("quantity").value);
+
+            if (!productId || !quantity || quantity <= 0) {
+                alert("Please select a valid product and enter a valid quantity.");
+                return;
+            }
+
+            try {
+                // Check if Inventory entry exists for the selected product
+                const inventoryRecords = await Xrm.WebApi.retrieveMultipleRecords("Inventory", `?$filter=_cr133_productid_value eq ${productId}`);
+                
+                if (operation === "1") { // In
+                    if (inventoryRecords.entities.length > 0) {
+                        // Update existing inventory
+                        const inventoryRecord = inventoryRecords.entities[0];
+                        const newQuantity = inventoryRecord.cr133_quantity + quantity;
+
+                        await Xrm.WebApi.updateRecord("Inventory", inventoryRecord.inventoryid, { cr133_quantity: newQuantity });
+                        alert("Inventory updated successfully.");
+                    } else {
+                        // Create new inventory record
+                        await Xrm.WebApi.createRecord("Inventory", {
+                            "cr133_productid@odata.bind": `/cr133_products(${productId})`,
+                            cr133_quantity: quantity
+                        });
+                        alert("New inventory record created successfully.");
+                    }
+                } else if (operation === "0") { // Out
+                    if (inventoryRecords.entities.length > 0) {
+                        // Deduct from existing inventory
+                        const inventoryRecord = inventoryRecords.entities[0];
+                        const currentQuantity = inventoryRecord.cr133_quantity;
+
+                        if (currentQuantity >= quantity) {
+                            const newQuantity = currentQuantity - quantity;
+
+                            await Xrm.WebApi.updateRecord("Inventory", inventoryRecord.inventoryid, { cr133_quantity: newQuantity });
+                            alert("Inventory updated successfully.");
+                        } else {
+                            alert("Error: Insufficient quantity in inventory.");
+                        }
+                    } else {
+                        alert("Error: Product not found in inventory.");
+                    }
+                }
+            } catch (error) {
+                console.error("Error performing inventory operation: ", error);
+                alert("Error performing inventory operation. Check console for details.");
+            }
+        }
+
+        // Fetch products when the popup loads
+        window.onload = fetchProducts;
+    </script>
+</body>
+</html>
