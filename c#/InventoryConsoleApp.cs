@@ -7,7 +7,7 @@ using System;
 using System.CodeDom;
 using System.Linq.Expressions;
 
-class Program
+class InventoryConsoleApp
 {
     // TODO Enter your Dataverse environment's URL and logon info.
     static string url = "https://orga15424f5.crm4.dynamics.com/";
